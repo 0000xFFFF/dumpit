@@ -1,4 +1,4 @@
-# dumpit-c
+# dumpit
 
 Easily transfer files from a phone to a PC over wifi.
 
