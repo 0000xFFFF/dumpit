@@ -15,7 +15,7 @@ sudo make install
 
 # Running
 ```sh
-dumpit -d <uploads>
+dumpit -u <uploads>
 ```
 
 # Usage

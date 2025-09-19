@@ -1,9 +1,20 @@
 #include "mongoose.h"
 #include <signal.h>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#define PATH_SEP "\\"
+#else
+#include <limits.h>
+#include <unistd.h>
+#define PATH_SEP "/"
+#endif
 
 #ifdef DEBUG
 #define LOG_LEVEL MG_LL_DEBUG
@@ -12,7 +23,7 @@
 #endif
 
 static int s_debug_level = LOG_LEVEL;
-static const char* s_root_dir = "static";
+static const char* s_root_dir = NULL;
 static const char* s_listening_addr = "http://0.0.0.0:8000";
 static const char* s_listening_addr_tls = "https://0.0.0.0:8443";
 static const char* s_enable_hexdump = "no";
@@ -107,6 +118,39 @@ static void usage(const char* prog)
     exit(EXIT_FAILURE);
 }
 
+int get_path_in_bindir(char* buffer, int size, const char* subpath)
+{
+    char exePath[PATH_MAX];
+    char exeDir[PATH_MAX];
+
+#ifdef _WIN32
+    DWORD len = GetModuleFileNameA(NULL, exePath, sizeof(exePath));
+    if (len == 0 || len == sizeof(exePath)) {
+        return 1;
+    }
+#else
+    ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+    if (len == -1) {
+        return 1;
+    }
+    exePath[len] = '\0';
+#endif
+
+    // Extract directory part
+    char* lastSep = strrchr(exePath, PATH_SEP[0]);
+    if (lastSep) {
+        size_t dirLen = lastSep - exePath;
+        strncpy(exeDir, exePath, dirLen);
+        exeDir[dirLen] = '\0';
+    }
+    else {
+        strcpy(exeDir, "."); // fallback
+    }
+
+    snprintf(buffer, size, "%s%s%s", exeDir, PATH_SEP, subpath);
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
     char path[MG_PATH_MAX] = ".";
@@ -137,6 +181,12 @@ int main(int argc, char* argv[])
         else {
             usage(argv[0]);
         }
+    }
+
+    char result[PATH_MAX] = {0};
+    if (s_root_dir == NULL) {
+        get_path_in_bindir(result, PATH_MAX - 1, "static");
+        s_root_dir = result;
     }
 
     // Root directory must not contain double dots. Make it absolute

@@ -31,7 +31,7 @@ run:
 	$(RUN) ./$(PROG) $(ARGS)
 
 install:
-	install -m 755 $(PROG) /usr/local/bin/
+	ln -sfr dumpit /usr/local/bin
 
 clean:                    # Cleanup. Delete built program and all build artifacts
 	$(DELETE) $(PROG) *.o *.obj *.exe *.dSYM
