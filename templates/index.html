@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="centercont">
+            <h1>Upload Files</h1>
+            <input type="file" id="fileInput" multiple>
+            <button class="flat-button" onclick="uploadFiles()">Upload</button>
+        </div>
+        <div id="filesdisplay" class="centercont"></div>
+
+        <div class="centercont">
+            <p id="info">...</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
