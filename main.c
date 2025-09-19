@@ -1,15 +1,23 @@
-// Copyright (c) 2020 Cesanta Software Limited
-// All rights reserved
-
 #include "mongoose.h"
 #include <signal.h>
 
-static int s_debug_level = MG_LL_INFO;
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#ifdef DEBUG
+#define LOG_LEVEL MG_LL_DEBUG
+#else
+#define LOG_LEVEL MG_LL_INFO
+#endif
+
+static int s_debug_level = LOG_LEVEL;
 static const char* s_root_dir = "static";
 static const char* s_listening_addr = "http://0.0.0.0:8000";
+static const char* s_listening_addr_tls = "https://0.0.0.0:8443";
 static const char* s_enable_hexdump = "no";
 static const char* s_ssi_pattern = "#.html";
-static const char* s_upload_dir = NULL; // File uploads disabled by default
+static const char* s_upload_dir = "upload";
 
 // Self signed certificates, see
 // https://github.com/cesanta/mongoose/blob/master/test/certs/generate.sh
@@ -60,43 +68,20 @@ static void cb(struct mg_connection* c, int ev, void* ev_data)
         opts.key = mg_str(s_tls_key);
         mg_tls_init(c, &opts);
     }
+
     if (ev == MG_EV_HTTP_MSG) {
         struct mg_http_message* hm = ev_data;
 
         if (mg_match(hm->uri, mg_str("/upload"), NULL)) {
-            // Serve file upload
-            if (s_upload_dir == NULL) {
-                mg_http_reply(c, 403, "", "Denied: file upload directory not set\n");
-            }
-            else {
-                struct mg_http_part part;
-                size_t pos = 0, total_bytes = 0, num_files = 0;
-                while ((pos = mg_http_next_multipart(hm->body, pos, &part)) > 0) {
-                    char path[MG_PATH_MAX];
-                    MG_INFO(("Chunk name: [%.*s] filename: [%.*s] length: %lu bytes",
-                             part.name.len, part.name.buf, part.filename.len,
-                             part.filename.buf, part.body.len));
-                    mg_snprintf(path, sizeof(path), "%s/%.*s", s_upload_dir,
-                                part.filename.len, part.filename.buf);
-                    if (mg_path_is_sane(mg_str(path))) {
-                        mg_file_write(&mg_fs_posix, path, part.body.buf, part.body.len);
-                        total_bytes += part.body.len;
-                        num_files++;
-                    }
-                    else {
-                        MG_ERROR(("Rejecting dangerous path %s", path));
-                    }
-                }
-                mg_http_reply(c, 200, "", "Uploaded %lu files, %lu bytes\n", num_files,
-                              total_bytes);
-            }
+            mg_http_upload(c, hm, &mg_fs_posix, s_upload_dir, SIZE_MAX);
         }
         else {
+
             // Serve web root directory
             struct mg_http_serve_opts opts = {0};
             opts.root_dir = s_root_dir;
             opts.ssi_pattern = s_ssi_pattern;
-            mg_http_serve_dir(c, hm, &opts);
+            mg_http_serve_dir(c, ev_data, &opts);
         }
 
         // Log request
@@ -161,14 +146,23 @@ int main(int argc, char* argv[])
         s_root_dir = path;
     }
 
+    // Create upload dir if it doesn't exists
+    struct stat st = {0};
+    if (stat(s_upload_dir, &st) == -1) {
+        mkdir(s_upload_dir, 0700);
+    }
+
     // Initialise stuff
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     mg_log_set(s_debug_level);
     mg_mgr_init(&mgr);
     if ((c = mg_http_listen(&mgr, s_listening_addr, cb, NULL)) == NULL) {
-        MG_ERROR(("Cannot listen on %s. Use http://ADDR:PORT or :PORT",
-                  s_listening_addr));
+        MG_ERROR(("Cannot listen on %s. Use http://ADDR:PORT or :PORT", s_listening_addr));
+        exit(EXIT_FAILURE);
+    }
+    if ((c = mg_http_listen(&mgr, s_listening_addr_tls, cb, "TLS!")) == NULL) {
+        MG_ERROR(("Cannot listen on %s. Use http://ADDR:PORT or :PORT", s_listening_addr_tls));
         exit(EXIT_FAILURE);
     }
     if (mg_casecmp(s_enable_hexdump, "yes") == 0)
@@ -177,6 +171,7 @@ int main(int argc, char* argv[])
     // Start infinite event loop
     MG_INFO(("Mongoose version : v%s", MG_VERSION));
     MG_INFO(("Listening on     : %s", s_listening_addr));
+    MG_INFO(("Listening on     : %s", s_listening_addr_tls));
     MG_INFO(("Web root         : %s", s_root_dir));
     MG_INFO(("Upload dir       : %s", s_upload_dir ? s_upload_dir : "(unset)"));
     while (s_signo == 0) {

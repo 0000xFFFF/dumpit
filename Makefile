@@ -1,4 +1,4 @@
-PROG ?= example                   # Program we are building
+PROG ?= dumpit                    # Program we are building
 DELETE = rm -rf                   # Command to remove files
 OUT ?= -o $(PROG)                 # Compiler argument for output file
 SOURCES = main.c mongoose.c       # Source code files
@@ -18,14 +18,20 @@ ifeq ($(OS),Windows_NT)   # Windows settings. Assume MinGW compiler. To use VC: 
   OUT ?= -o $(PROG)             # Build output
 endif
 
-all: $(PROG)              # Default target. Build and run program
-	$(RUN) ./$(PROG) $(ARGS)
-
 $(PROG): $(SOURCES)       # Build program from sources
 	$(CC) $(SOURCES) $(CFLAGS) $(CFLAGS_MONGOOSE) $(CFLAGS_EXTRA) $(OUT)
 
 vc98:
 	cl $(SOURCES) -DMG_ENABLE_SSI=1 -DMG_TLS=MG_TLS_BUILTIN
+
+debug: $(SOURCES)       # Build program from sources
+	$(CC) -D DEBUG $(SOURCES) $(CFLAGS) $(CFLAGS_MONGOOSE) $(CFLAGS_EXTRA) $(OUT)
+
+run:
+	$(RUN) ./$(PROG) $(ARGS)
+
+install:
+	install -m 755 $(PROG) /usr/local/bin/
 
 clean:                    # Cleanup. Delete built program and all build artifacts
 	$(DELETE) $(PROG) *.o *.obj *.exe *.dSYM
