@@ -22,6 +22,8 @@
 #define LOG_LEVEL MG_LL_INFO
 #endif
 
+#define DUMPIT_VERSION "2.0.0"
+
 static int s_debug_level = LOG_LEVEL;
 static const char* s_root_dir = NULL;
 static const char* s_listening_addr = "http://0.0.0.0:8000";
@@ -105,6 +107,7 @@ static void cb(struct mg_connection* c, int ev, void* ev_data)
 static void usage(const char* prog)
 {
     fprintf(stderr,
+            "dumpit v.%s\n"
             "Mongoose v.%s\n"
             "Usage: %s OPTIONS\n"
             "  -H yes|no - enable traffic hexdump, default: '%s'\n"
@@ -113,7 +116,7 @@ static void usage(const char* prog)
             "  -l ADDR   - listening HTTP address, default: '%s'\n"
             "  -u DIR    - file upload directory, default: unset\n"
             "  -v LEVEL  - debug level, from 0 to 4, default: %d\n",
-            MG_VERSION, prog, s_enable_hexdump, s_ssi_pattern, s_root_dir,
+            DUMPIT_VERSION, MG_VERSION, prog, s_enable_hexdump, s_ssi_pattern, s_root_dir,
             s_listening_addr, s_debug_level);
     exit(EXIT_FAILURE);
 }
