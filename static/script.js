@@ -155,7 +155,7 @@ async function uploadFiles() {
                 sendFileData(
                     file.name,
                     data,
-                    1024 * 16,
+                    1024 * 64,
                     function(status) {
                         // progress
                         const percentComplete = Math.round(((status.offset + status.chunkSize) / status.data.length) * 100);

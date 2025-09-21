@@ -22,7 +22,7 @@
 #define LOG_LEVEL MG_LL_INFO
 #endif
 
-#define DUMPIT_VERSION "2.0.0"
+#define DUMPIT_VERSION "2.0.1"
 
 static int s_debug_level = LOG_LEVEL;
 static const char* s_root_dir = NULL;
