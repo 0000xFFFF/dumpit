@@ -30,9 +30,14 @@ function human_readable_bytes(bytes) {
 }
 
 function info(message) {
-    console.log(message);
     if (infoElement) {
-        infoElement.innerHTML += message + "<br>";
+        infoElement.innerHTML = message;
+        if (infoElement.innerHTML == "") {
+            infoElement.style.display = "none";
+        }
+        else {
+            infoElement.style.display = "block";
+        }
     }
 }
 
@@ -169,7 +174,7 @@ async function uploadFiles() {
 
     updateFileTable(files); // Update table with selected files
 
-    infoElement.innerHTML = "";
+    info("Uploading " + files.length + " file(s)...");
 
     const uploadFile = (file, index) => {
         return new Promise((resolve, reject) => {
@@ -212,6 +217,7 @@ async function uploadFiles() {
     };
 
     for (const [index, file] of Array.from(files).entries()) {
+        info("Uploading file " + (index + 1) + "/" + files.length + ": " + file.name);
         await uploadFile(file, index);
     }
 
