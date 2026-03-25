@@ -1,31 +1,32 @@
-const infoElement = document.getElementById('info');
-const filesDisplay = document.getElementById('filesdisplay');
+const infoElement = document.getElementById("info");
+const filesDisplay = document.getElementById("filesdisplay");
 
 function humanFileSize(bytes, si = false, dp = 1) {
     const thresh = si ? 1000 : 1024;
 
     if (Math.abs(bytes) < thresh) {
-        return bytes + ' B';
+        return bytes + " B";
     }
 
     const units = si
-        ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-        : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+        ? ["kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+        : ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
     let u = -1;
     const r = 10 ** dp;
 
     do {
         bytes /= thresh;
         ++u;
-    } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
+    } while (
+        Math.round(Math.abs(bytes) * r) / r >= thresh &&
+        u < units.length - 1
+    );
 
-
-    return bytes.toFixed(dp) + ' ' + units[u];
+    return bytes.toFixed(dp) + " " + units[u];
 }
 
-
 function human_readable_bytes(bytes) {
-    return (humanFileSize(bytes) + " (" + bytes + " bytes)");
+    return humanFileSize(bytes) + " (" + bytes + " bytes)";
 }
 
 function info(message) {
@@ -38,44 +39,43 @@ function info(message) {
 function date2str(input_date) {
     const date = new Date(input_date);
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are zero-indexed
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
     const formattedDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     return formattedDateTime;
 }
 
 function updateFileTable(files) {
-    filesDisplay.innerHTML = ''; // Clear existing rows
+    filesDisplay.innerHTML = ""; // Clear existing rows
 
     Array.from(files).forEach((file, index) => {
-
-        const div_file = document.createElement('div');
+        const div_file = document.createElement("div");
         div_file.className = "div_file";
         div_file.id = `fileItem${index}`;
 
-        const div1 = document.createElement('div');
+        const div1 = document.createElement("div");
         div1.className = "div_file_div1";
-        const p1 = document.createElement('p');
+        const p1 = document.createElement("p");
         p1.className = "p_index";
-        p1.innerHTML = (index + 1) + "/" + files.length;
-        const p2 = document.createElement('p');
+        p1.innerHTML = index + 1 + "/" + files.length;
+        const p2 = document.createElement("p");
         p2.className = "p_name";
         p2.innerHTML = file.name;
         div1.appendChild(p1);
         div1.appendChild(p2);
         div_file.appendChild(div1);
 
-        const div2 = document.createElement('div');
+        const div2 = document.createElement("div");
         div2.className = "div_file_div2";
-        const p3 = document.createElement('p');
+        const p3 = document.createElement("p");
         p3.className = "p_size";
         p3.innerHTML = human_readable_bytes(file.size);
         div2.appendChild(p3);
         if (file.lastModifiedDate !== undefined) {
-            const p4 = document.createElement('p');
+            const p4 = document.createElement("p");
             p4.className = "p_date";
             p4.innerHTML = date2str(file.lastModifiedDate);
             p4.style.display = "block";
@@ -83,17 +83,17 @@ function updateFileTable(files) {
         }
         div_file.appendChild(div2);
 
-        const progressCont = document.createElement('div');
+        const progressCont = document.createElement("div");
         progressCont.className = "progressCont";
         progressCont.id = `progressBar${index}_cont`;
-        const progressDiv = document.createElement('div');
+        const progressDiv = document.createElement("div");
         progressDiv.className = "progress";
-        const progressBar = document.createElement('div');
-        progressBar.className = 'progress-bar';
+        const progressBar = document.createElement("div");
+        progressBar.className = "progress-bar";
         progressBar.id = `progressBar${index}`;
-        progressBar.style.width = '0%';
+        progressBar.style.width = "0%";
         progressDiv.appendChild(progressBar);
-        const progressLabel = document.createElement('p');
+        const progressLabel = document.createElement("p");
         progressLabel.className = "progress-label";
         progressLabel.id = `progressBar${index}_label`;
         progressLabel.innerHTML = "....";
@@ -105,37 +105,66 @@ function updateFileTable(files) {
     });
 }
 
-var sendFileData = function(name, data, chunkSize, statusCallback, errorCallback, doneCallback) {
+// Stream-upload a File by reading slices. This avoids allocating the whole file in memory.
+var sendFileData = function(
+    file,
+    chunkSize,
+    statusCallback,
+    errorCallback,
+    doneCallback,
+) {
     var sendChunk = function(offset) {
-        var chunk = data.subarray(offset, offset + chunkSize);
-        var opts = { method: 'POST', body: chunk };
-        var url = '/upload?offset=' + offset + '&file=' + encodeURIComponent(name);
-        var ok;
+        if (offset >= file.size) {
+            doneCallback();
+            return;
+        }
 
-        statusCallback({ name, offset, chunkSize: chunk.length, data });
+        var blob = file.slice(offset, offset + chunkSize);
+        var reader = new FileReader();
 
-        fetch(url, opts)
-            .then(function(res) {
-                ok = res.ok;
-                if (res.ok && chunk.length > 0) {
-                    sendChunk(offset + chunk.length);
-                } else if (res.ok) {
-                    doneCallback();
-                }
-                return res.text();
-            })
-            .then(function(text) {
-                if (!ok) errorCallback(text);
-            })
-            .catch(function(err) {
-                errorCallback(err);
+        reader.onload = function() {
+            var chunk = new Uint8Array(reader.result);
+            var opts = { method: "POST", body: chunk };
+            var url =
+                "/upload?offset=" + offset + "&file=" + encodeURIComponent(file.name);
+            var ok;
+
+            statusCallback({
+                name: file.name,
+                offset: offset,
+                chunkSize: chunk.length,
+                total: file.size,
             });
+
+            fetch(url, opts)
+                .then(function(res) {
+                    ok = res.ok;
+                    if (res.ok) {
+                        var nextOffset = offset + chunk.length;
+                        if (nextOffset < file.size) sendChunk(nextOffset);
+                        else doneCallback();
+                    }
+                    return res.text();
+                })
+                .then(function(text) {
+                    if (!ok) errorCallback(text);
+                })
+                .catch(function(err) {
+                    errorCallback(err);
+                });
+        };
+
+        reader.onerror = function() {
+            errorCallback(reader.error);
+        };
+
+        reader.readAsArrayBuffer(blob);
     };
     sendChunk(0);
 };
 
 async function uploadFiles() {
-    const files = document.getElementById('fileInput').files;
+    const files = document.getElementById("fileInput").files;
     if (files.length === 0) return;
 
     updateFileTable(files); // Update table with selected files
@@ -145,41 +174,40 @@ async function uploadFiles() {
     const uploadFile = (file, index) => {
         return new Promise((resolve, reject) => {
             const fileItem = document.getElementById(`fileItem${index}`);
-            const progressBarCont = document.getElementById(`progressBar${index}_cont`);
+            const progressBarCont = document.getElementById(
+                `progressBar${index}_cont`,
+            );
             progressBarCont.style.display = "flex";
 
-            let r = new FileReader();
-            r.onload = function() {
-                const data = new Uint8Array(r.result);
-
-                sendFileData(
-                    file.name,
-                    data,
-                    1024 * 64,
-                    function(status) {
-                        // progress
-                        const percentComplete = Math.round(((status.offset + status.chunkSize) / status.data.length) * 100);
-                        const progressBar = document.getElementById(`progressBar${index}`);
-                        const progressLabel = document.getElementById(`progressBar${index}_label`);
-                        if (progressBar) {
-                            progressBar.style.width = percentComplete + '%';
-                            progressLabel.textContent = percentComplete + '%';
-                        }
-                    },
-                    function(err) {
-                        fileItem.classList.add("div_file_fail");
-                        reject(err);
-                    },
-                    function() {
-                        // finished
-                        fileItem.classList.add("div_file_success");
-                        progressBarCont.style.display = "none";
-                        resolve();
+            // Use streaming upload (slice + FileReader) to avoid loading whole file in memory
+            sendFileData(
+                file,
+                1024 * 64,
+                function(status) {
+                    // progress
+                    const percentComplete = Math.round(
+                        ((status.offset + status.chunkSize) / status.total) * 100,
+                    );
+                    const progressBar = document.getElementById(`progressBar${index}`);
+                    const progressLabel = document.getElementById(
+                        `progressBar${index}_label`,
+                    );
+                    if (progressBar) {
+                        progressBar.style.width = percentComplete + "%";
+                        progressLabel.textContent = percentComplete + "%";
                     }
-                );
-            };
-            r.onerror = () => reject(r.error);
-            r.readAsArrayBuffer(file);
+                },
+                function(err) {
+                    fileItem.classList.add("div_file_fail");
+                    reject(err);
+                },
+                function() {
+                    // finished
+                    fileItem.classList.add("div_file_success");
+                    progressBarCont.style.display = "none";
+                    resolve();
+                },
+            );
         });
     };
 
@@ -187,9 +215,9 @@ async function uploadFiles() {
         await uploadFile(file, index);
     }
 
-    info('Done!');
+    info("Done!");
 }
 
-document.getElementById('fileInput').addEventListener('change', (event) => {
+document.getElementById("fileInput").addEventListener("change", (event) => {
     updateFileTable(event.target.files); // Update table when files are selected
 });
