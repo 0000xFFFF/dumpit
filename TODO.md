@@ -1,0 +1,2 @@
+- fix ugly web ui (add monokai colors?)
+- add color to output
